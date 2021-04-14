@@ -14,17 +14,16 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-//Route::group([ 'prefix' => 'auth'], function (){
-    Route::group(['middleware' => ['guest:api']], function () {
-        Route::get('/registration/{token}', 'Users\UsersController@RegistrationFromLink')->name('registrationFromLink');
-        Route::POST('/user/registration', 'Users\UsersController@Create')->name('register');
-        Route::POST('/user/login', 'Auth\AuthController@login')->name('login');
-    });
-    Route::group(['middleware' => 'auth:api'], function() {
-        Route::POST('/user/profile/update', 'Users\UsersController@ProfileUpdate')->name('ProfileUpdate');
+Route::group(['middleware' => ['guest:api']], function () {
+    Route::get('/registration/{token}', 'Users\UsersController@RegistrationFromLink')->name('registrationFromLink');
+    Route::POST('/user/registration', 'Users\UsersController@Create')->name('register');
+    Route::POST('/user/login', 'Auth\AuthController@login')->name('login');
+});
+Route::group(['middleware' => 'auth:api'], function() {
+    Route::POST('/user/profile/update', 'Users\UsersController@ProfileUpdate')->name('ProfileUpdate');
 
+    Route::POST('/verify/email', 'InvitationVerify\InviteVerifyController@verifyEmail')->name('verify_email');
+    Route::group(['middleware' => ['role:Admin']], function () {
         Route::post('/users/invite', 'InvitationVerify\InviteVerifyController@ProcessInvite')->name('processInvite');
-        Route::POST('/verify/email', 'InvitationVerify\InviteVerifyController@verifyEmail')->name('verify_email');
-
     });
-//});
+});

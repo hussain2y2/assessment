@@ -4,35 +4,33 @@ namespace App\Http\Controllers\InvitationVerify;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Responses\ResponseController;
-use App\Invite;
-use App\User;
-use App\VerifyEmail;
+use App\Mail\InvitationEmail;
+use App\Models\Invite;
+use App\Models\User;
+use App\Models\VerifyEmail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
-use Illuminate\Validation\Validator;
+use Illuminate\Support\Facades\Validator;
 use Psy\Util\Str;
 
 class InviteVerifyController extends Controller
 {
     public function ProcessInvite(Request $request) {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email|unique:users,email',
+            'email' => 'required',
             'name' => 'required'
         ]);
-
-        $validator->after(function ($validator) use ($request) {
-            if (Invite::where('email', $request->input('email'))->exists()) {
-                return ResponseController::sendError('There exists an invite with this email!', 409);
-            }
-        });
 
         if ($validator->fails()) {
             return ResponseController::sendError($validator->errors(), 400);
         }
 
-        // generate unique token for every invitation
+        if (Invite::where('email', $request->input('email'))->exists()) {
+            return ResponseController::sendError('There exists an invite with this email!', 409);
+        }
+
         do {
             $token = \Illuminate\Support\Str::random(20);
         } while (Invite::where('token', $token)->first());
@@ -43,20 +41,10 @@ class InviteVerifyController extends Controller
         ]);
 
         $url = URL::temporarySignedRoute(
-            'registration', now()->addMinutes(1440), ['token' => $token]
+            'registrationFromLink', now()->addMinutes(1440), ['name' => $request->input('name'), 'token' => $token]
         );
 
-
-        $to_name = $request->input('name');
-        $to_email = $request->input('email');
-        $data = array('name' => 'Hussain Ahmad', 'invitation_link' => $url);
-
-        Mail::send('mail', $data, function($message) use ($to_name, $to_email) {
-            $message->to($to_email, $to_name)
-                ->subject('Invitation Link');
-            $message->from($_ENV['MAIL_USERNAME'],'ABC');
-        });
-
+        Mail::to($to_email = $request->input('email'))->send(new InvitationEmail($request->input('name'), $url));
         return ResponseController::sendResponse(array('message' => 'The Invite has been sent successfully'));
     }
 
@@ -75,10 +63,10 @@ class InviteVerifyController extends Controller
             $user->verified = true;
             $user->save();
         } else {
-            return ResponseController::sendError('Invalid Pin');
+            return ResponseController::sendError('You entered Invalid Pin', 417);
         }
 
         $pin->delete();
-        return ResponseController::sendResponse(array('message' => 'Your account verified successfully'));
+        return ResponseController::sendResponse(array('message' => 'Your account has been verified successfully'));
     }
 }

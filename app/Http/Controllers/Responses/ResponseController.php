@@ -7,9 +7,9 @@ use Illuminate\Http\Request;
 
 class ResponseController extends Controller
 {
-    public static function sendResponse($response)
+    public static function sendResponse($response, $code = 200)
     {
-        return response()->json($response, 200);
+        return response()->json($response, $code);
     }
 
 

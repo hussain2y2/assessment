@@ -4,14 +4,14 @@ namespace App\Http\Controllers\Users;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Responses\ResponseController;
-use App\Invite;
-use App\User;
-use App\VerifyEmail;
+use App\Models\Invite;
+use App\Models\User;
+use App\Models\VerifyEmail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Validation\Validator;
+use Illuminate\Support\Facades\Validator;
 
 class UsersController extends Controller
 {
@@ -19,19 +19,28 @@ class UsersController extends Controller
     {
         $invite = Invite::where('token', $token)->first();
         if(!empty($invite)) {
-            return ResponseController::sendResponse(array('data' => $invite));
+            echo '<h2>Registration Form Open</h2>';
         } else {
-            return ResponseController::sendError('Link is expired or not correct');
+            echo '<h2>Link Expire or not correct</h2>';
         }
     }
 
     public function Create(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required',
+            'userName' => 'required|min:04|max:20',
+            'token' => 'required',
+            'password' => 'required'
+        ]);
+        if ($validator->fails()) {
+            return ResponseController::sendError($validator->errors(), 400);
+        }
 
         $invite = Invite::where('token', $request->input('token'))->first();
 
         $user = new User();
-        $user->name = $request->input('userName');
+        $user->name = $request->input('name');
         $user->user_name = $request->input('userName');
         $user->email = $invite->email;
         $user->password = Hash::make($request->input('password'));
@@ -45,18 +54,9 @@ class UsersController extends Controller
         $verify->pin = $pin;
         $verify->save();
 
-//        $to_name = $request->input('userName');
-//        $to_email = $invite->email;
-//        $data = array('name' => 'Hussain Ahmad', 'Verify Email' => $pin);
-//
-//        Mail::send('mail', $data, function($message) use ($to_name, $to_email) {
-//            $message->to($to_email, $to_name)
-//                ->subject('Verify Email');
-//            $message->from($_ENV['MAIL_USERNAME'],'ABCD');
-//        });
-
+        Mail::to($invite->email)->send(new \App\Mail\VerifyEmail($request->input('name'), $pin));
         $invite->delete();
-        return ResponseController::sendResponse(array('message' => 'Your account has been made, please verify it by entering 6 digit pin that has been send to your email.' . $pin));
+        return ResponseController::sendResponse(array('message' => 'Your account has been created, please verify it by entering 6 digit pin that has been send to your email.'));
     }
 
     public function ProfileUpdate(Request $request) {
